@@ -1,0 +1,9 @@
+PyQt6>=6.6.0
+PyQt6-WebEngine>=6.6.0
+pynput>=1.7.6
+mss>=9.0.1
+Pillow>=10.0.0
+pytesseract>=0.3.10
+# 注意: pytesseract 需要单独安装 Tesseract OCR 引擎
+# Windows Tesseract 安装程序: https://github.com/UB-Mannheim/tesseract/wiki
+# 请确保将 tesseract 添加到系统 PATH 或在代码中指定其路径

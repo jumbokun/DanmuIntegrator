@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danmu Display</title>
+    <style>
+        /* 摩登样式 by LAPLACE Chat */
+        /* 引入 Google Fonts 字体，理论上国内可以直接访问 */
+        @import url('https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;1,400;1,600&display=swap');
+
+        /* 全局背景透明，可保证 OBS 载入弹幕机的过程中背景全程透明 */
+        body {
+            background-color: rgba(0, 0, 0, 0);
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* 防止滚动条出现 */
+            font-family: 'Jost', sans-serif; /* 设置默认字体 */
+        }
+
+        /* 全局事件变量 */
+        .event {
+          /* 应用全局自定义字体 */
+          /* --font-sans 为 LAPLACE Chat 内置变量，可调用非衬线字体 */
+          --event-font-family: 'Jost', var(--font-sans);
+
+          /* 应用变量 */
+          /* 这些颜色变量似乎未在后续规则中直接使用，但保留以防万一 */
+          --event-danmaku-streamer-text: rgb(255, 255, 255);
+          --event-danmaku-mod-text: rgb(255, 255, 255);
+          --event-font-size: 16px; /* 定义一个基础字号，原CSS似乎缺失 */
+          /* 调整最小高度 */
+          --event-min-height: 48px;
+        }
+
+        /* 配置弹幕变量 */
+        .event--message {
+          --text: #fff;
+          --bg: rgb(82, 82, 91); /* 默认背景 */
+          --avatar-size: 18px; /* 似乎未被使用 */
+          --1px: 1px; /* 模拟 LAPLACE Chat 可能的变量 */
+        }
+
+        /* 总督变量 */
+        .event--message.guard-level--1 {
+          --bg: rgb(141, 91, 73);
+        }
+
+        /* 提督变量 */
+        .event--message.guard-level--2 {
+          --bg: rgb(112, 90, 129);
+        }
+
+        /* 舰长变量 */
+        .event--message.guard-level--3 {
+          --bg: rgb(83, 104, 141);
+        }
+
+        /* 主播变量 */
+        .event--message.user-type--streamer {
+          --bg: rgb(233, 109, 37);
+        }
+
+        /* 其他特殊用户类型 (可自行扩展) */
+         .event--message.user-type--twitter {
+            /* --bg: rgb(29, 161, 242);  Twitter 蓝 */
+             /* 使用一个不同的灰色以便区分 */
+             --bg: rgb(100, 100, 108);
+         }
+         .event--message.user-type--weibo {
+            /* --bg: rgb(255, 136, 0);  Weibo 橙 */
+             /* 使用一个不同的灰色以便区分 */
+             --bg: rgb(118, 118, 126);
+         }
+         /* 可以添加更多平台或用户类型 */
+         .event--message.user-type--system {
+             --bg: rgb(100, 60, 120); /* 系统消息用紫色 */
+         }
+
+
+        /* 全局间距 */
+        .event {
+          /* 减少垂直间距 */
+          margin: calc(var(--1px) * 6) 0;
+        }
+
+        /* 弹幕正文改为聊天泡泡样式 */
+        .event--message {
+          position: relative;
+          display: block;
+          /*
+            上方用户名字体偏小，下方文本字体偏大，导致下方 line-height 更高
+            因此此处要调高上方 padding 来实现 visual align (原注释，实际效果待验证)
+          */
+          padding: calc(var(--1px) * 6) calc(var(--1px) * 14) calc(var(--1px) * 4);
+          padding-left: calc(var(--1px) * 26);
+          color: var(--text);
+          font-weight: bold;
+          background-color: var(--bg);
+          /* overflow: hidden;  改为 visible 尝试解决挤压? 不，保持 hidden */
+          border-radius: calc(var(--1px) * 4); /* 添加一点圆角 */
+          font-size: var(--event-font-size);
+          line-height: 1.4;
+          word-wrap: break-word; /* 允许长单词换行 */
+          /* *** 修改动画：只应用渐入效果 *** */
+          opacity: 0;
+          animation: fadeIn 0.5s ease forwards;
+          /* 应用最小高度 */
+          min-height: var(--event-min-height);
+          box-sizing: border-box; /* 让 padding 包含在高度内 */
+          flex-shrink: 0; /* 添加 flex-shrink: 0 防止 flex item 收缩 */
+        }
+
+        /* 强制缩小用户名 */
+        .event--message .username {
+          color: #fff;
+          opacity: .6;
+          font-size: calc(var(--event-font-size) * 0.875); /* 14px if base is 16px */
+          display: block; /* 让用户名单独一行 */
+          margin-bottom: calc(var(--1px) * 2);
+        }
+
+        /* 左侧装饰条 */
+        .event--message::before {
+          content: '';
+          position: absolute;
+          width: calc(var(--1px) * 6);
+          background-color: rgba(255, 255, 255, 0.3);
+          left: calc(var(--1px) * 10);
+          top: calc(var(--1px) * 10);
+          bottom: calc(var(--1px) * 10);
+          border-radius: calc(var(--1px) * 4);
+        }
+
+        /* 弹幕正文 */
+        .event--message .message {
+          display: block; /* 确保消息体换行 */
+          font-weight: normal; /* 消息内容用普通字重 */
+        }
+
+        /* --- 粉丝勋章和等级的部分在OCR场景下很难获取，暂时简化或注释掉 --- */
+        /*
+        .event--message .fans-medal { ... }
+        .event--message .fans-medal-content { ... }
+        .event--message .fans-medal-content .guard-badge { ... }
+        .event--message .fans-medal-level { ... }
+        */
+
+        /* 一个简易的渐变淡出效果 */
+        .event-list {
+          position: absolute;
+          bottom: 0; /* 固定在底部 */
+          left: 0;
+          right: 0;
+          display: flex;
+          flex-direction: column; /* 默认就是 column，显式写出 */
+          align-items: stretch; /* 让子元素宽度撑满 */
+          padding: 0 10px; /* 左右留白 */
+          /* 增加 mask offset */
+          --offset: 40px;
+          max-height: 100vh; /* 限制最大高度为视口高度 */
+          overflow-y: hidden; /* 隐藏垂直滚动条和溢出内容 */
+
+          /* 修改 mask-image 方向，让顶部淡出 */
+          -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) calc(100% - var(--offset)), transparent 100%);
+                  mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) calc(100% - var(--offset)), transparent 100%);
+        }
+
+        /* *** 修改动画定义：只改变 opacity *** */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+    </style>
+    <!-- QWebChannel TBD: If needed, load qwebchannel.js here -->
+    <!-- <script src="qrc:///qtwebchannel/qwebchannel.js"></script> -->
+</head>
+<body>
+    <div class="event-list" id="chat-container">
+        <!-- Danmu messages will be added here -->
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const maxMessages = 30; // 最多显示多少条消息
+
+        // 用于从 Python 调用的函数
+        function addDanmu(username, message, userType = 'normal', guardLevel = 0) {
+            console.log("Adding Danmu:", username, message, userType, guardLevel);
+            const eventDiv = document.createElement('div');
+            eventDiv.classList.add('event', 'event--message');
+
+            // 根据用户类型和等级添加 CSS class
+            if (userType) {
+                // 将 python 传来的 source ('weibo', 'twitter') 映射到 user-type class
+                eventDiv.classList.add(`user-type--${userType.toLowerCase()}`);
+            }
+            if (guardLevel && guardLevel >= 1 && guardLevel <= 3) {
+                eventDiv.classList.add(`guard-level--${guardLevel}`); // e.g., guard-level--1
+            }
+
+            // 创建用户名元素
+            const usernameSpan = document.createElement('span');
+            usernameSpan.classList.add('username');
+            usernameSpan.textContent = username;
+            eventDiv.appendChild(usernameSpan);
+
+            // 创建消息内容元素
+            const messageSpan = document.createElement('span');
+            messageSpan.classList.add('message');
+            // 处理换行符，将其转换为 <br> 标签
+            message.split('\n').forEach((line, index, arr) => {
+                messageSpan.appendChild(document.createTextNode(line));
+                if (index < arr.length - 1) {
+                    messageSpan.appendChild(document.createElement('br'));
+                }
+            });
+            eventDiv.appendChild(messageSpan);
+
+
+            // 添加到容器底部
+            chatContainer.appendChild(eventDiv);
+
+            // *** 强制滚动到底部 ***
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // 检查并移除旧消息 (移除顶部第一个子元素)
+            while (chatContainer.children.length > maxMessages) {
+                if (chatContainer.firstChild) { // Add check if firstChild exists
+                    chatContainer.removeChild(chatContainer.firstChild);
+                } else {
+                    break; // Break if no children left to remove
+                }
+            }
+        }
+
+        // --- QWebChannel Setup (Placeholder) ---
+        /*
+        document.addEventListener("DOMContentLoaded", function () {
+            if (typeof qt !== 'undefined' && typeof qt.webChannelTransport !== 'undefined') {
+                new QWebChannel(qt.webChannelTransport, function (channel) {
+                    // Example: Assuming Python exposes an object named 'pyHandler'
+                    // window.pyHandler = channel.objects.pyHandler;
+                    // if (window.pyHandler && typeof window.pyHandler.js_ready === 'function') {
+                    //      window.pyHandler.js_ready(); // Notify Python that JS is ready
+                    // }
+
+                    // You might expose the 'addDanmu' function to Python instead
+                    channel.registerObject('jsHandler', {
+                        addDanmu: addDanmu // Expose the addDanmu function
+                    });
+                     console.log("QWebChannel connected, jsHandler registered.");
+                });
+            } else {
+                console.error("qt.webChannelTransport not found, QWebChannel initialization failed.");
+                // Fallback or mock setup if needed for testing without PyQt
+                 addDanmu("System", "前端加载完成 (无 PyQt 环境)", "system");
+                 addDanmu("Test User", "这是一条测试弹幕。\nThis is a test message.", "normal");
+                 addDanmu("主播大人", "我是主播!", "streamer");
+                 addDanmu("舰长阿狗", "Biu~", "normal", 3); // 舰长
+                 addDanmu("提督阿猫", "喵", "normal", 2); // 提督
+                 addDanmu("总督阿虎", "嗷", "normal", 1); // 总督
+                 addDanmu("推特用户", "来自 Twitter 的评论。", "twitter");
+                 addDanmu("微博用户", "来自 Weibo 的评论。", "weibo");
+            }
+        });
+        */
+
+         // ---- Mock Data for Testing without PyQt ----
+         // 如果直接用浏览器打开 HTML 文件，添加一些测试数据
+         if (typeof qt === 'undefined' || typeof qt.webChannelTransport === 'undefined') {
+             console.log("Running in browser or without QWebChannel, adding mock data.");
+             // Add fewer initial messages to better observe the behavior
+             addDanmu("System", "前端加载完成 (无 PyQt 环境)", "system");
+             addDanmu("Test User", "测试弹幕 1", "normal");
+             addDanmu("主播大人", "主播消息", "streamer");
+
+
+             let count = 0;
+             setInterval(() => {
+                 count++;
+                 const userTypes = ['normal', 'twitter', 'weibo', 'streamer'];
+                 const guardLevels = [0, 1, 2, 3];
+                 const randomUserType = userTypes[Math.floor(Math.random() * userTypes.length)];
+                 const randomGuardLevel = guardLevels[Math.floor(Math.random() * guardLevels.length)];
+                 // Add guard level only if user type is normal
+                 const level = (randomUserType === 'normal') ? randomGuardLevel : 0;
+                 addDanmu(`MockUser${count}`, `这是第 ${count} 条模拟消息 -------------------------------------------- 类型: ${randomUserType} 等级: ${level}`, randomUserType, level);
+             }, 1000); // 更快地添加消息，方便测试
+         }
+
+    </script>
+</body>
+</html>

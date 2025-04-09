@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danmu Display (Alternating)</title>
+    <style>
+        /* 摩登样式 by LAPLACE Chat - Alternating Grey Version */
+        @import url('https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;1,400;1,600&display=swap');
+
+        body {
+            background-color: rgba(0, 0, 0, 0);
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Jost', sans-serif;
+        }
+
+        .event {
+          --event-font-family: 'Jost', var(--font-sans);
+          --event-danmaku-streamer-text: rgb(255, 255, 255); /* Kept for potential text color needs */
+          --event-danmaku-mod-text: rgb(255, 255, 255);    /* Kept for potential text color needs */
+          --event-font-size: 16px;
+          --event-min-height: 48px;
+          /* Define the two alternating grey colors */
+          --grey-1: rgb(82, 82, 91);  /* Original default grey */
+          --grey-2: rgb(100, 100, 108); /* Slightly lighter/different grey */
+        }
+
+        .event--message {
+          --text: #fff;
+          /* Default bg removed, will be set by :nth-child */
+          /* --bg: rgb(82, 82, 91); */
+          --avatar-size: 18px;
+          --1px: 1px;
+        }
+
+        /* --- Remove or comment out type/level specific backgrounds --- */
+        /*
+        .event--message.guard-level--1 { --bg: rgb(141, 91, 73); }
+        .event--message.guard-level--2 { --bg: rgb(112, 90, 129); }
+        .event--message.guard-level--3 { --bg: rgb(83, 104, 141); }
+        .event--message.user-type--streamer { --bg: rgb(233, 109, 37); }
+        .event--message.user-type--twitter { --bg: rgb(100, 100, 108); }
+        .event--message.user-type--weibo { --bg: rgb(118, 118, 126); }
+        .event--message.user-type--system { --bg: rgb(100, 60, 120); }
+        */
+
+        .event {
+          margin: calc(var(--1px) * 6) 0;
+        }
+
+        .event--message {
+          position: relative;
+          display: block;
+          padding: calc(var(--1px) * 6) calc(var(--1px) * 14) calc(var(--1px) * 4);
+          padding-left: calc(var(--1px) * 26);
+          color: var(--text);
+          font-weight: bold;
+          /* Background color will be set by :nth-child rules below */
+          background-color: var(--bg); /* Use the --bg variable */
+          border-radius: calc(var(--1px) * 4);
+          font-size: var(--event-font-size);
+          line-height: 1.4;
+          word-wrap: break-word;
+          opacity: 0;
+          animation: fadeIn 0.5s ease forwards;
+          min-height: var(--event-min-height);
+          box-sizing: border-box;
+          flex-shrink: 0;
+        }
+
+        /* --- Apply alternating backgrounds --- */
+        .event-list > .event--message:nth-child(odd) {
+            --bg: var(--grey-1); /* Odd items use grey 1 */
+        }
+        .event-list > .event--message:nth-child(even) {
+             --bg: var(--grey-2); /* Even items use grey 2 */
+        }
+
+
+        .event--message .username {
+          color: #fff;
+          opacity: .6;
+          font-size: calc(var(--event-font-size) * 0.875);
+          display: block;
+          margin-bottom: calc(var(--1px) * 2);
+        }
+
+        .event--message::before {
+          content: '';
+          position: absolute;
+          width: calc(var(--1px) * 6);
+          /* Adjust decorator color for better visibility on grey? Maybe slightly lighter */
+          background-color: rgba(255, 255, 255, 0.35);
+          left: calc(var(--1px) * 10);
+          top: calc(var(--1px) * 10);
+          bottom: calc(var(--1px) * 10);
+          border-radius: calc(var(--1px) * 4);
+        }
+
+        .event--message .message {
+          display: block;
+          font-weight: normal;
+        }
+
+        .event-list {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          padding: 0 10px;
+          --offset: 40px;
+          max-height: 100vh;
+          overflow-y: hidden;
+
+          -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) calc(100% - var(--offset)), transparent 100%);
+                  mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) calc(100% - var(--offset)), transparent 100%);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="event-list" id="chat-container">
+        <!-- Danmu messages will be added here -->
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const maxMessages = 30;
+
+        function addDanmu(username, message, userType = 'normal', guardLevel = 0) {
+            // console.log("Adding Danmu (Alt):", username, message, userType, guardLevel); // Optional logging change
+            const eventDiv = document.createElement('div');
+            // Add base classes, no need for user-type or guard-level for background anymore
+            eventDiv.classList.add('event', 'event--message');
+
+            // We might still want to add classes for potential future styling (e.g., different icons, text styles)
+            // but they won't affect the background color in this version.
+             if (userType) {
+                 eventDiv.classList.add(`user-type--${userType.toLowerCase()}`);
+             }
+             if (guardLevel && guardLevel >= 1 && guardLevel <= 3) {
+                 eventDiv.classList.add(`guard-level--${guardLevel}`);
+             }
+
+
+            const usernameSpan = document.createElement('span');
+            usernameSpan.classList.add('username');
+            usernameSpan.textContent = username;
+            eventDiv.appendChild(usernameSpan);
+
+            const messageSpan = document.createElement('span');
+            messageSpan.classList.add('message');
+            message.split('\n').forEach((line, index, arr) => {
+                messageSpan.appendChild(document.createTextNode(line));
+                if (index < arr.length - 1) {
+                    messageSpan.appendChild(document.createElement('br'));
+                }
+            });
+            eventDiv.appendChild(messageSpan);
+
+            chatContainer.appendChild(eventDiv);
+
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Remove old messages
+            while (chatContainer.children.length > maxMessages) {
+                if (chatContainer.firstChild) {
+                    chatContainer.removeChild(chatContainer.firstChild);
+                } else {
+                    break;
+                }
+            }
+        }
+
+         // ---- Mock Data for Testing without PyQt ----
+         if (typeof qt === 'undefined' || typeof qt.webChannelTransport === 'undefined') {
+             console.log("Running in browser (Alternating Grey), adding mock data.");
+             addDanmu("System", "前端加载完成 (交替灰色样式)", "system");
+             addDanmu("Test User", "测试弹幕 1", "normal");
+             addDanmu("主播大人", "主播消息 (也会是灰色)", "streamer"); // Streamer message will also be grey
+             addDanmu("舰长阿狗", "Biu~ (灰色背景)", "normal", 3);    // Guard message will also be grey
+
+
+             let count = 0;
+             setInterval(() => {
+                 count++;
+                 const userTypes = ['normal', 'twitter', 'weibo', 'streamer'];
+                 const guardLevels = [0, 1, 2, 3];
+                 const randomUserType = userTypes[Math.floor(Math.random() * userTypes.length)];
+                 const randomGuardLevel = guardLevels[Math.floor(Math.random() * guardLevels.length)];
+                 const level = (randomUserType === 'normal') ? randomGuardLevel : 0;
+                 // No need to pass type/level for background, but JS logic is kept
+                 addDanmu(`MockUser${count}`, `这是第 ${count} 条模拟消息 (交替灰色)`, randomUserType, level);
+             }, 1000);
+         }
+
+    </script>
+</body>
+</html>
