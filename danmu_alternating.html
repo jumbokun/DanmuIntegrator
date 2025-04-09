@@ -138,20 +138,16 @@
         const maxMessages = 30;
 
         function addDanmu(username, message, userType = 'normal', guardLevel = 0) {
-            // console.log("Adding Danmu (Alt):", username, message, userType, guardLevel); // Optional logging change
+            console.log("Adding Danmu (WebSocket):", username, message, userType, guardLevel);
             const eventDiv = document.createElement('div');
-            // Add base classes, no need for user-type or guard-level for background anymore
             eventDiv.classList.add('event', 'event--message');
 
-            // We might still want to add classes for potential future styling (e.g., different icons, text styles)
-            // but they won't affect the background color in this version.
-             if (userType) {
-                 eventDiv.classList.add(`user-type--${userType.toLowerCase()}`);
-             }
-             if (guardLevel && guardLevel >= 1 && guardLevel <= 3) {
-                 eventDiv.classList.add(`guard-level--${guardLevel}`);
-             }
-
+            if (userType) {
+                eventDiv.classList.add(`user-type--${userType.toLowerCase()}`);
+            }
+            if (guardLevel && guardLevel >= 1 && guardLevel <= 3) {
+                eventDiv.classList.add(`guard-level--${guardLevel}`);
+            }
 
             const usernameSpan = document.createElement('span');
             usernameSpan.classList.add('username');
@@ -170,10 +166,8 @@
 
             chatContainer.appendChild(eventDiv);
 
-            // Scroll to bottom
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            // Remove old messages
             while (chatContainer.children.length > maxMessages) {
                 if (chatContainer.firstChild) {
                     chatContainer.removeChild(chatContainer.firstChild);
@@ -183,27 +177,57 @@
             }
         }
 
-         // ---- Mock Data for Testing without PyQt ----
-         if (typeof qt === 'undefined' || typeof qt.webChannelTransport === 'undefined') {
-             console.log("Running in browser (Alternating Grey), adding mock data.");
-             addDanmu("System", "前端加载完成 (交替灰色样式)", "system");
-             addDanmu("Test User", "测试弹幕 1", "normal");
-             addDanmu("主播大人", "主播消息 (也会是灰色)", "streamer"); // Streamer message will also be grey
-             addDanmu("舰长阿狗", "Biu~ (灰色背景)", "normal", 3);    // Guard message will also be grey
+        // --- WebSocket Connection --- 
+        const wsUri = "ws://localhost:8765"; // Default address for the Python WebSocket server
+        let websocket;
 
+        function initWebSocket() {
+            console.log("Attempting to connect to WebSocket at", wsUri);
+            websocket = new WebSocket(wsUri);
 
-             let count = 0;
-             setInterval(() => {
-                 count++;
-                 const userTypes = ['normal', 'twitter', 'weibo', 'streamer'];
-                 const guardLevels = [0, 1, 2, 3];
-                 const randomUserType = userTypes[Math.floor(Math.random() * userTypes.length)];
-                 const randomGuardLevel = guardLevels[Math.floor(Math.random() * guardLevels.length)];
-                 const level = (randomUserType === 'normal') ? randomGuardLevel : 0;
-                 // No need to pass type/level for background, but JS logic is kept
-                 addDanmu(`MockUser${count}`, `这是第 ${count} 条模拟消息 (交替灰色)`, randomUserType, level);
-             }, 1000);
-         }
+            websocket.onopen = function(evt) { onOpen(evt) };
+            websocket.onclose = function(evt) { onClose(evt) };
+            websocket.onmessage = function(evt) { onMessage(evt) };
+            websocket.onerror = function(evt) { onError(evt) };
+        }
+
+        function onOpen(evt) {
+            console.log("WebSocket Connected");
+            // Optional: Send a message to server on connect
+            // websocket.send("Hello Server!");
+            addDanmu("System", "已连接到弹幕服务器", "system");
+        }
+
+        function onClose(evt) {
+            console.log("WebSocket Disconnected. Attempting to reconnect...");
+            addDanmu("System", "与弹幕服务器断开连接，尝试重连...", "system");
+            // Attempt to reconnect after a delay
+            setTimeout(initWebSocket, 5000); // Reconnect after 5 seconds
+        }
+
+        function onMessage(evt) {
+            console.log("Message received: " + evt.data);
+            try {
+                const data = JSON.parse(evt.data);
+                if (data.type === 'danmu' && data.payload) {
+                     const { username, message, source, guard_level } = data.payload;
+                     // Call the existing function to display the danmu
+                     addDanmu(username, message, source, guard_level || 0);
+                 }
+            } catch (e) {
+                console.error("Failed to parse message or missing fields:", e);
+                addDanmu("System", "收到无法解析的消息", "system");
+            }
+        }
+
+        function onError(evt) {
+            console.error("WebSocket Error: ", evt);
+            addDanmu("System", "WebSocket 连接错误", "system");
+            // The onClose event will likely fire after an error, triggering reconnect logic
+        }
+
+        // Initialize WebSocket connection when the page loads
+        window.addEventListener("load", initWebSocket, false);
 
     </script>
 </body>

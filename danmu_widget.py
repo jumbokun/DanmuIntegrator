@@ -1,95 +1,120 @@
 import sys
 import os
+
+# *** Remove pure QSS imports, revert to WebEngine imports ***
+# from PyQt6.QtWidgets import (
+#     QApplication, QWidget, QVBoxLayout, QLabel, QScrollArea, QSizePolicy,
+#     QFrame
+# )
+# from PyQt6.QtCore import Qt, pyqtSlot, QTimer, QRect, QPropertyAnimation, QEasingCurve, QParallelAnimationGroup, QPoint
+# from PyQt6.QtGui import QPalette, QColor, QFont, QFontDatabase
+
+# Re-add WebEngine imports
 from PyQt6.QtWidgets import QApplication, QWidget
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
-from PyQt6.QtCore import QUrl, Qt, pyqtSlot, QTimer, QRect # Import QRect
+from PyQt6.QtCore import QUrl, Qt, pyqtSlot, QTimer, QRect
 import random
+
+# --- Remove DanmuMessageWidget class --- 
+# class DanmuMessageWidget(QWidget): ...
+
+# --- Revert DanmuWidget to use QWebEngineView --- 
 
 class DanmuWebPage(QWebEnginePage):
     """自定义 WebPage 以处理 console.log 等"""
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
-        print(f"JS Console ({sourceID}:{lineNumber}): {message}")
+        # Filter out the specific GPU/raster errors if they appear here
+        ignore_errors = [
+            "shared_image_factory.cc",
+            "native_skia_output_device.cpp",
+            "raster_decoder.cc"
+        ]
+        if not any(err in message for err in ignore_errors):
+            print(f"JS Console ({sourceID}:{lineNumber}): {message}")
 
 class DanmuWidget(QWidget):
-    def __init__(self, initial_rect=None): # 添加 initial_rect 参数
+    def __init__(self, initial_rect=None):
         super().__init__()
+
         self.web_view = QWebEngineView(self)
         self.web_page = DanmuWebPage(self.web_view)
         self.web_view.setPage(self.web_page)
 
-        # --- Window Setup ---
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint |      # 无边框
-                          Qt.WindowType.WindowStaysOnTopHint |     # 保持置顶
-                          Qt.WindowType.Tool)                      # 不在任务栏显示 (Tool 类型可能自带置顶)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground) # 设置背景透明
+        # --- Window Setup (Keep transparency) ---
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint |
+                          Qt.WindowType.WindowStaysOnTopHint |
+                          Qt.WindowType.Tool)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.web_view.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.web_page.setBackgroundColor(Qt.GlobalColor.transparent) # Web 背景透明
+        self.web_page.setBackgroundColor(Qt.GlobalColor.transparent)
 
-        # --- Layout ---
-        # QWidget 没有 layout，需要手动设置 web_view 大小
-        self.web_view.setGeometry(0, 0, 400, 600) # 初始大小
-        self.resize(400, 600)                     # 设置窗口大小
-
-        # 设置初始位置和大小 (如果提供了)
+        # --- Layout (Manual positioning for WebEngineView) ---
+        # No QVBoxLayout needed for this version
+        # Set initial geometry for the WebView manually
+        initial_width = 400
+        initial_height = 600
         if initial_rect and isinstance(initial_rect, QRect):
-            self.setGeometry(initial_rect)
-            self.web_view.setGeometry(0, 0, initial_rect.width(), initial_rect.height())
+             self.setGeometry(initial_rect)
+             initial_width = initial_rect.width()
+             initial_height = initial_rect.height()
+        else:
+            self.resize(initial_width, initial_height)
+        self.web_view.setGeometry(0, 0, initial_width, initial_height)
 
 
-        # --- Load HTML ---
-        html_path = os.path.abspath("danmu.html")
+        # --- Load HTML --- 
+        # Decide which HTML to load (original or alternating)
+        html_file = "danmu_alternating.html" # Or "danmu.html"
+        html_path = os.path.abspath(html_file)
         if not os.path.exists(html_path):
-             print(f"错误: 找不到 danmu.html 文件于 {html_path}")
-             # 在当前目录下创建一个简单的占位符 HTML
+             print(f"错误: 找不到 {html_file} 文件于 {html_path}")
+             # Create placeholder
              try:
-                 with open("danmu.html", "w", encoding="utf-8") as f:
-                     f.write("<!DOCTYPE html><html><head><title>Error</title></head><body style='background-color: rgba(50,0,0,0.8); color: white; padding: 10px;'><h1>Error</h1><p>Could not find danmu.html. Please create it.</p></body></html>")
-                 print("已创建占位符 danmu.html")
+                 with open(html_file, "w", encoding="utf-8") as f:
+                     f.write(f"<!DOCTYPE html><html><head><title>Error</title></head><body style='background-color: rgba(50,0,0,0.8); color: white; padding: 10px;'><h1>Error</h1><p>Could not find {html_file}. Please create it.</p></body></html>")
+                 print(f"已创建占位符 {html_file}")
              except Exception as e:
-                 print(f"创建占位符 danmu.html 失败: {e}")
-                 return # Exit if we can't even create a placeholder
-
+                 print(f"创建占位符 {html_file} 失败: {e}")
+                 return
 
         print(f"Loading HTML from: {QUrl.fromLocalFile(html_path).toString()}")
         self.web_view.setUrl(QUrl.fromLocalFile(html_path))
 
-        # --- Enable DevTools (optional) ---
-        # os.environ["QTWEBENGINE_REMOTE_DEBUGGING"] = "9223" # Choose a port
-        # settings = self.web_page.settings()
-        # settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
-        # settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
-        # settings.setAttribute(QWebEngineSettings.WebAttribute.ErrorPageEnabled, True)
-        # settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True) # If needed
-
-
         # --- Mock Data Timer ---
         self.mock_timer = QTimer(self)
         self.mock_timer.timeout.connect(self.add_mock_danmu)
-        # self.mock_timer.start(2000) # 每 2 秒添加一条
+        # self.mock_timer.start(1500)
+
+    # Keep apply_styles (does nothing in this version, but harmless)
+    def apply_styles(self):
+        pass
 
     @pyqtSlot(str, str, str, int)
     def add_danmu_message(self, username, message, user_type='normal', guard_level=0):
         """将弹幕消息发送到 QWebEngineView"""
-        # 转义特殊字符以安全地插入到 JS 字符串中
+        # Escape special characters for JS string insertion
         js_username = username.replace('\\', '\\\\').replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n')
         js_message = message.replace('\\', '\\\\').replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n')
         js_user_type = user_type.replace('\\', '\\\\').replace("'", "\\'").replace('"', '\\"')
 
         js_code = f"addDanmu('{js_username}', '{js_message}', '{js_user_type}', {guard_level});"
-        self.web_page.runJavaScript(js_code)
+        # Use page() to run JavaScript
+        if self.web_page:
+            self.web_page.runJavaScript(js_code)
+        else:
+            print("Error: web_page not initialized.")
 
     def add_mock_danmu(self):
         """添加模拟弹幕数据"""
         users = ["用户A", "张三", "Commenter", "路人甲", "测试员"]
         messages = ["哈哈哈", "666", "主播好棒", "这条消息\n有换行", "Test message!"]
-        user_types = ['normal', 'twitter', 'weibo', 'streamer']
+        user_types = ['normal', 'twitter', 'weibo', 'streamer', 'system']
         guard_levels = [0, 1, 2, 3]
 
         username = random.choice(users)
         message = random.choice(messages)
         user_type = random.choice(user_types)
-        # 只有普通用户才有 guard level
         guard_level = random.choice(guard_levels) if user_type == 'normal' else 0
 
         self.add_danmu_message(username, message, user_type, guard_level)
@@ -101,32 +126,23 @@ class DanmuWidget(QWidget):
             event.accept()
 
     def mouseMoveEvent(self, event):
-         # Check if drag_position exists and the left button is pressed
         if hasattr(self, 'drag_position') and event.buttons() == Qt.MouseButton.LeftButton:
             self.move(event.globalPosition().toPoint() - self.drag_position)
             event.accept()
 
+    # --- Handle Resize --- 
     def resizeEvent(self, event):
-        """窗口大小改变时，调整 WebView 大小"""
+        """Resize the web view when the main widget is resized."""
         super().resizeEvent(event)
+        # Resize the web_view to fill the widget
         self.web_view.setGeometry(0, 0, self.width(), self.height())
 
 
-# --- Test Section ---
+# --- Test Section --- 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    # 可以传入一个 QRect 来设置初始位置和大小
-    # initial_geometry = QRect(100, 100, 350, 500)
-    # widget = DanmuWidget(initial_geometry)
-    widget = DanmuWidget() # 使用默认大小和位置
+    widget = DanmuWidget()
     widget.show()
-
-    # 添加一些初始测试弹幕
-    widget.add_danmu_message("System", "弹幕窗口已启动", "system")
-    widget.add_danmu_message("我是谁", "第一条消息", "normal", 3)
-
-    # 启动模拟弹幕定时器
+    widget.add_danmu_message("System", "弹幕窗口已启动 (WebEngine)", "system")
     widget.mock_timer.start(1500)
-
-
     sys.exit(app.exec())

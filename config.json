@@ -1,0 +1,23 @@
+{
+    "api_key": "AIzaSyDOEPc87qpB_37Zv2J0Oj8fpJM40zD1ykE",
+    "selected_model": "gemini-2.0-flash",
+    "weibo_interval": 15.0,
+    "twitter_interval": 60.0,
+    "weibo_rect": {
+        "x": 71,
+        "y": 851,
+        "width": 584,
+        "height": 357
+    },
+    "twitter_rect": {
+        "x": 17,
+        "y": 44,
+        "width": 880,
+        "height": 391
+    },
+    "system_instruction": "我会发给你一张图片，其中是一些用户在直播中的评论。请逐条分析是否是合法（绝对不含不宜向公众展示的尤其是色情内容）并且完整的评论内容。请仅提取合法的内容，将粗体显示的用户名（形如jumbokun@Jumbokun2024请仅提取jumbokun）以及评论输出为一个json{\"username\":\"comment\"}返回。",
+    "display": {
+        "width": 400,
+        "lines": 3
+    }
+}
